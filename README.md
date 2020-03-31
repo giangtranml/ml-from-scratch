@@ -29,8 +29,8 @@ As a software engineer, I follow the principle of OOP to construct the repositor
   * [RMSProp](https://github.com/giangtranml/ml-from-scratch/blob/master/optimizations_algorithms/optimizers.py#L37)
   * [Adam](https://github.com/giangtranml/ml-from-scratch/blob/master/optimizations_algorithms/optimizers.py#L51)
 - Weights initialization:
-  * He initialization (https://github.com/giangtranml/ml-from-scratch/blob/master/nn_components/initializers.py#L3)
-  * Xavier/Glorot initialization (https://github.com/giangtranml/ml-from-scratch/blob/master/nn_components/initializers.py#L24)
+  * [He initialization](https://github.com/giangtranml/ml-from-scratch/blob/master/nn_components/initializers.py#L3)
+  * [Xavier/Glorot initialization](https://github.com/giangtranml/ml-from-scratch/blob/master/nn_components/initializers.py#L24)
 - Advanced models:
   * [Attention Mechanism (Bahdanau and Luong Attention)](https://github.com/giangtranml/ml-from-scratch/blob/master/attention_mechanism/Attention_Mechanism.ipynb)
   * [Transformer](https://github.com/giangtranml/ml-from-scratch/blob/master/transformer/Transformer_Pytorch.ipynb)
