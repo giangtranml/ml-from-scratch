@@ -106,7 +106,7 @@ class Trainer:
                 num_batches += 1
                 pbar.set_description("Epoch " + str(e+1) + " - Loss: %.5f" % (epoch_loss/num_batches))
         
-            print("Loss at epoch %d: %.5f" % (e, epoch_loss/num_batches))
+            print("Loss at epoch %d: %.5f" % (e+1, epoch_loss/num_batches))
 
     def save_model(self, name):
         import pickle

@@ -32,7 +32,7 @@ class CNN(NeuralNetwork):
                                                                                         ActivationLayer, BatchnormLayer, DropoutLayer]
         """
         for layer in layers:
-            if isinstance(layer, (FCLayer, BatchNormLayer)):
+            if isinstance(layer, (ConvLayer, FCLayer, BatchNormLayer)):
                 layer.initialize_optimizer(self.optimizer)
         return layers
 

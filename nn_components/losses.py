@@ -59,3 +59,26 @@ class MSE:
     def __init__(self):
         pass
 
+    def __call__(self, y_hat, y):
+        """
+        Mean squared error
+        """
+        m = len(y)
+        loss = np.sum((y_hat - y)**2)/(2*m)
+        return loss
+
+    def backward(self, y_hat, y):
+        """
+        Compute gradient of MSE w.r.t y_hat
+
+        Parameters
+        ----------
+        y_hat: output from linear transformation. shape = (num_dataset, )
+        y: ground truth, real values. shape = (num_dataset, )
+        """
+        m = len(y)
+        grad = (y_hat - y)/m
+        return grad
+
+class BinaryCrossEntropy:
+    pass

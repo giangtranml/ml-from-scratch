@@ -2,7 +2,8 @@ import sys
 import numpy as np
 sys.path.append("..")
 import os
-from libs.utils import one_hot_encoding, Trainer, load_dataset_cifar10
+from libs.utils import one_hot_encoding, Trainer, preprocess_data, load_dataset_mnist
+from libs.mnist_lib import MNIST
 from optimizations_algorithms.optimizers import SGD, SGDMomentum, RMSProp, Adam
 from convolutional_neural_network import CNN
 from nn_components.losses import CrossEntropy
@@ -35,16 +36,17 @@ def main(use_keras=False):
         ActivationLayer(activation="softmax")
     ]
 
-    print("Train Cifar10 dataset by CNN with pure Python: Numpy.")
+    print("Train MNIST dataset by CNN with pure Python: Numpy.")
     weight_path = "cnn_weights.pkl"
     training_phase = weight_path not in os.listdir(".")
+    load_dataset_mnist("../libs")
+    mndata = MNIST('../libs/data_mnist', gz=True)
     
     if training_phase:
-        (images_train, labels_train), (_, _) = load_dataset_cifar10()
-        images_train = images_train / 255
-        labels_train = one_hot_encoding(labels_train)
+        images_train, labels_train = mndata.load_training()
+        images_train, labels_train = preprocess_data(images_train, labels_train, nn=True)
 
-        epochs = 10
+        epochs = 5
         batch_size = 64
         learning_rate = 0.006
 
@@ -59,9 +61,8 @@ def main(use_keras=False):
 
     else:
         import pickle
-        (_, _), (images_test, labels_test) = load_dataset_cifar10()
-        images_test = images_test / 255
-        labels_test = np.squeeze(labels_test)
+        images_test, labels_test = mndata.load_testing()
+        images_test, labels_test = preprocess_data(images_test, labels_test, nn=True, test=True)
         if not use_keras:
             with open(weight_path, "rb") as f:
                 cnn = pickle.load(f)
