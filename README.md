@@ -7,7 +7,7 @@ This ML repository is all about coding Machine Learning algorithms from scratch 
 As a software engineer, I follow the principle of OOP to construct the repository. You can see that `NeuralNetwork` class will use `FCLayer`, `BatchNormLayer`, `ActivationLayer` class and `CNN` class will use `ConvLayer`, `PoolingLayer`, `FCLayer`, `ActivationLayer`,... This helps me easily reuse every piece of code I wrote as well as for readable code. 
 
 ## Table of contents
-- ML from scratch models:
+- Machine Learning models:
   * [Linear Regression](https://github.com/giangtranml/ml-from-scratch/blob/master/linear_regression/linear_regression.py)
   * [Logistic Regression](https://github.com/giangtranml/ml-from-scratch/blob/master/logistic_regression/logistic_regression.py)
   * [Softmax Regression](https://github.com/giangtranml/ml-from-scratch/blob/master/softmax_regression/softmax_regression.py)
@@ -28,7 +28,9 @@ As a software engineer, I follow the principle of OOP to construct the repositor
   * [SGD with Momentum](https://github.com/giangtranml/ml-from-scratch/blob/master/optimizations_algorithms/optimizers.py#L24)
   * [RMSProp](https://github.com/giangtranml/ml-from-scratch/blob/master/optimizations_algorithms/optimizers.py#L37)
   * [Adam](https://github.com/giangtranml/ml-from-scratch/blob/master/optimizations_algorithms/optimizers.py#L51)
-  
+- Weights initialization:
+  * He initialization (https://github.com/giangtranml/ml-from-scratch/blob/master/nn_components/initializers.py#L3)
+  * Xavier/Glorot initialization (https://github.com/giangtranml/ml-from-scratch/blob/master/nn_components/initializers.py#L24)
 - Advanced models:
   * [Attention Mechanism (Bahdanau and Luong Attention)](https://github.com/giangtranml/ml-from-scratch/blob/master/attention_mechanism/Attention_Mechanism.ipynb)
-  * [Transformer](https://github.com/giangtranml/ml-from-scratch/blob/master/transformer/Transformer.ipynb)
+  * [Transformer](https://github.com/giangtranml/ml-from-scratch/blob/master/transformer/Transformer_Pytorch.ipynb)
