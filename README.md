@@ -30,6 +30,5 @@ As a software engineer, I follow the principle of OOP to construct the repositor
   * [Adam](https://github.com/giangtranml/ml-from-scratch/blob/master/optimizations_algorithms/optimizers.py#L51)
   
 - Advanced models:
-  * [Bahdanau Attention Mechanism](https://github.com/giangtranml/ml-from-scratch/blob/master/attention_mechanism/Bahdanau%20Attention%20Mechanism.ipynb) 
-  * [Luong Attention Mechanism](https://github.com/giangtranml/ml-from-scratch/blob/master/attention_mechanism/Luong%20Attention%20Mechanism.ipynb)
+  * [Attention Mechanism (Bahdanau and Luong Attention)](https://github.com/giangtranml/ml-from-scratch/blob/master/attention_mechanism/Attention_Mechanism.ipynb)
   * [Transformer](https://github.com/giangtranml/ml-from-scratch/blob/master/transformer/Transformer.ipynb)
