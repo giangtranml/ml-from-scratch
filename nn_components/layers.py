@@ -8,12 +8,6 @@ initialization_mapping = {"he_normal": he_normal, "xavier_normal": xavier_normal
 
 class Layer:
 
-    def initialize_optimizer(self, optimizer):
-        """
-        optimizer: (object) optimizer uses to optimize the loss function.
-        """
-        self.optimizer = copy.copy(optimizer)
-
     def forward(self, X):
         raise NotImplementedError("Child class must implement forward() function")
 
@@ -21,26 +15,34 @@ class Layer:
         raise NotImplementedError("Child class must implement backward() function")
 
 
-class CNNLayer(Layer):
+class LearnableLayer:
 
-    def _split_X(self, X):
-        """
-        Preprocess input X to avoid for-loop.
-        """
-        assert hasattr(self, "filter_size") and hasattr(self, "stride"), "Make sure you're using this function with CNN layers."
-        m, iH, iW, iC = X.shape
-        fH, fW = self.filter_size
-        oH = int((iH - fH)/self.stride + 1)
-        oW = int((iW - fW)/self.stride + 1)
-        batch_strides, width_strides, height_strides, channel_strides = X.strides
-        view_shape = (m, oH, oW, fH, fW, iC)
-        X = np.lib.stride_tricks.as_strided(X, shape=view_shape, strides=(batch_strides, self.stride*width_strides, 
-                                                                            self.stride*height_strides, width_strides, 
-                                                                            height_strides, channel_strides), writeable=False)
-        return X
+    def forward(self, X):
+        raise NotImplementedError("Child class must implement forward() function")
+
+    def backward(self):
+        raise NotImplementedError("Child class must implement backward() function")
+
+    def update_params(self, grad):
+        self.W = self.W - grad
+
+def _split_X(X, filter_size, stride):
+    """
+    Preprocess input X to avoid for-loop.
+    """
+    m, iH, iW, iC = X.shape
+    fH, fW = filter_size
+    oH = int((iH - fH)/stride + 1)
+    oW = int((iW - fW)/stride + 1)
+    batch_strides, width_strides, height_strides, channel_strides = X.strides
+    view_shape = (m, oH, oW, fH, fW, iC)
+    X = np.lib.stride_tricks.as_strided(X, shape=view_shape, strides=(batch_strides, stride*width_strides, 
+                                                                        stride*height_strides, width_strides, 
+                                                                        height_strides, channel_strides), writeable=False)
+    return X
 
 
-class FCLayer(Layer):
+class FCLayer(LearnableLayer):
 
     def __init__(self, num_neurons, weight_init="std"):
         """
@@ -91,20 +93,14 @@ class FCLayer(Layer):
         d_prev: gradient of J respect to A[l] at the current layer.
         """
         if type(prev_layer) is np.ndarray:
-            grad = prev_layer.T.dot(d_prev)
-            self.update_params(grad)
-            return None
-        grad = prev_layer.output.T.dot(d_prev)
-        self.update_params(grad)
+            dW = prev_layer.T.dot(d_prev)
+            return None, dW
+        dW = prev_layer.output.T.dot(d_prev)
         d_prev = d_prev.dot(self.W.T)
-        return d_prev
-
-    def update_params(self, grad):
-        updated_grad = self.optimizer.minimize(grad)
-        self.W -= updated_grad
+        return d_prev, dW
 
 
-class ConvLayer(CNNLayer):
+class ConvLayer(LearnableLayer):
 
     def __init__(self, filter_size, filters, padding='SAME', stride=1, weight_init="std"):
         """
@@ -199,7 +195,7 @@ class ConvLayer(CNNLayer):
             self.W = initialization_mapping[self.weight_init](weight_shape=self.filter_size + (X.shape[-1], self.filters))
         if self.padding == "SAME":
             X = self._pad_input(X)
-        X = self._split_X(X)
+        X = _split_X(X, self.filter_size, self.stride)
         self.output = self._conv_op(X, self.W)
         return self.output
 
@@ -220,7 +216,7 @@ class ConvLayer(CNNLayer):
         m, oH, oW, oC = d_prev.shape
         fH, fW = self.filter_size
         dA = np.zeros(shape=(X.shape))
-        X = self._split_X(X)
+        X = _split_X(X, self.filter_size, self.stride)
         dW = self._conv_op_backward(X, d_prev, update_params=True)
         dA_temp = self._conv_op_backward(self.W, d_prev, update_params=False)
         for h in range(oH):
@@ -232,17 +228,10 @@ class ConvLayer(CNNLayer):
             offset_h = (iH - oH)//2
             offset_w = (iW - oW)//2 
             dA = dA[:, offset_h:-offset_h, offset_w:-offset_w, :]
-        if hasattr(self, "debug"):
-            return dA, dW
-        self.update_params(dW)
-        return dA
-
-    def update_params(self, grad):
-        updated_grad = self.optimizer.minimize(grad)
-        self.W -= updated_grad
+        return dA, dW
 
 
-class PoolingLayer(CNNLayer):
+class PoolingLayer(Layer):
 
     def __init__(self, filter_size=(2, 2), stride=2, mode="max"):
         """
@@ -293,7 +282,7 @@ class PoolingLayer(CNNLayer):
                                                             with corresponding pooling type (max or avg).
         """
         m, iH, iW, iC = X.shape
-        X = self._split_X(X)
+        X = _split_X(X, self.filter_size, self.stride)
         m, oH, oW, _ = output.shape
         output = np.reshape(output, newshape=(m, oH, oW, 1, 1, iC))
         d_prev = np.reshape(d_prev, newshape=(m, oH, oW, 1, 1, iC))
@@ -318,7 +307,7 @@ class PoolingLayer(CNNLayer):
         -------
         Output tensor that has shape = (m, oH, oW, iC)
         """
-        X = self._split_X(X)
+        X = _split_X(X, self.filter_size, self.stride)
         self.output = self._pool_op(X)
         return self.output
 
@@ -430,11 +419,12 @@ class DropoutLayer(Layer):
         return d_prev * self.mask
 
 
-class BatchNormLayer(Layer):
+class BatchNormLayer(LearnableLayer):
 
     def __init__(self, momentum=0.99, epsilon=1e-9):
         self.momentum = momentum
         self.epsilon = epsilon
+        self.W = None
 
     def forward(self, X, prediction=False):
         """
@@ -445,21 +435,21 @@ class BatchNormLayer(Layer):
         -------
         Output values of batch normalization.
         """
-        if not hasattr(self, "gamma") and not hasattr(self, "beta"):
-            self.gamma = np.ones(((1,) + X.shape[1:]))
-            self.beta = np.zeros(((1,) + X.shape[1:]))
-            self.mu_moving_average = np.zeros(shape=self.beta.shape)
-            self.sigma_moving_average = np.zeros(shape=self.gamma.shape)
+        if self.W is None:
+            gamma = np.ones(((1,) + X.shape[1:]))
+            beta = np.zeros(((1,) + X.shape[1:]))
+            self.W = np.vstack((gamma, beta))
+            self.moving_average = np.zeros_like(self.W) 
         if not prediction:
             self.mu = np.mean(X, axis=0, keepdims=True)
             self.sigma = np.std(X, axis=0, keepdims=True)
-            self.mu_moving_average = self.momentum*(self.mu_moving_average) + (1-self.momentum)*self.mu
-            self.sigma_moving_average = self.momentum*(self.sigma_moving_average) + (1-self.momentum)*self.sigma
+            self.moving_average[0] = self.momentum*(self.moving_average[0]) + (1-self.momentum)*self.mu
+            self.moving_average[1] = self.momentum*(self.moving_average[1]) + (1-self.momentum)*self.sigma
         else:
-            self.mu = self.mu_moving_average
-            self.sigma = self.sigma_moving_average    
+            self.mu = self.moving_average[0]
+            self.sigma = self.moving_average[1]
         self.Xnorm = (X - self.mu)/np.sqrt(self.sigma + self.epsilon)
-        self.output = self.gamma*self.Xnorm + self.beta
+        self.output = self.W[0]*self.Xnorm + self.W[1]
         return self.output
 
     def backward(self, d_prev, prev_layer):
@@ -478,20 +468,13 @@ class BatchNormLayer(Layer):
         dZ: Gradient w.r.t LINEAR function Z.
         """
         m = prev_layer.output.shape[0]
-        dXnorm = d_prev * self.gamma
+        dXnorm = d_prev * self.W[0]
         gamma_grad = np.sum(d_prev * self.Xnorm, axis=0, keepdims=True)
         beta_grad = np.sum(d_prev, axis=0, keepdims=True)
-        self.update_params(gamma_grad, beta_grad)
         dSigma = np.sum(dXnorm * (-((prev_layer.output - self.mu)*(self.sigma+self.epsilon)**(-3/2))/2),
                        axis=0, keepdims=True)
         dMu = np.sum(dXnorm*(-1/np.sqrt(self.sigma+self.epsilon)), axis=0, keepdims=True) +\
                 dSigma*((-2/m)*np.sum(prev_layer.output - self.mu, axis=0, keepdims=True))
         d_prev = dXnorm*(1/np.sqrt(self.sigma+self.epsilon)) + dMu/m +\
                 dSigma*((2/m)*np.sum(prev_layer.output - self.mu, axis=0, keepdims=True))
-        return d_prev
-
-    def update_params(self, gamma_grad, beta_grad):
-        updated_gamma_grad = self.optimizer.minimize(gamma_grad)
-        updated_beta_grad = self.optimizer.minimize(beta_grad)
-        self.gamma -= updated_gamma_grad
-        self.beta -= updated_beta_grad
+        return d_prev, np.vstack((gamma_grad, beta_grad))

@@ -21,6 +21,7 @@ class CrossEntropy:
         J: cross-entropy loss.
         """
         assert Y.shape == Y_hat.shape, "Unmatch shape."
+        Y_hat[Y_hat == 0] = 1e-20
         loss = np.sum(self.weights * Y * np.log(Y_hat), axis=-1)
         return -np.mean(loss)
 
