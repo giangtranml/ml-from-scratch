@@ -14,6 +14,9 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import classification_report, confusion_matrix, precision_recall_fscore_support
 from tqdm import tqdm
 from .cifar10_lib import get_file, load_batch
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
+
 
 def load_dataset_mnist(check_path):
     print("-------> Downloading MNIST dataset")
@@ -68,6 +71,20 @@ def preprocess_data(X, y, nn=False, test=False):
         y = one_hot_encoding(y)
     return X, y
 
+def save_grid_images(images, iteration):
+    images = np.reshape(images, newshape=(-1, 28, 28))
+    fig = plt.figure(figsize=(4., 4.))
+    grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                    nrows_ncols=(4, 4),  # creates 2x2 grid of axes
+                    axes_pad=0.1,  # pad between axes in inch.
+                    )
+
+    for ax, im in zip(grid, images):
+        # Iterating over the grid returns the Axes.
+        ax.imshow(im, cmap="gray")
+
+    plt.savefig("gan-%d.png" % iteration)    
+
 
 class Trainer:
     
@@ -113,6 +130,46 @@ class Trainer:
         with open(name, "wb") as f:
             pickle.dump(self.model, f, pickle.HIGHEST_PROTOCOL)
 
+class TrainerGAN:
+
+    def __init__(self, generator, discriminator, batch_size, iterations, latent_dim=100, k=1, report_freq=40):
+        self.generator = generator
+        self.discriminator = discriminator
+        self.batch_size = batch_size
+        self.iterations = iterations
+        self.latent_dim = latent_dim
+        self.k = k
+        self.report_freq = report_freq
+
+    def train(self, X_train):
+        m = X_train.shape[0]
+        ones = np.ones(shape=(self.batch_size, 1))
+        zeros = np.zeros(shape=(self.batch_size, 1))
+        y = np.concatenate((ones, zeros), axis=0)
+        for i in range(self.iterations):
+            z = np.random.normal(size=(self.batch_size, self.latent_dim))
+            G = self.generator(z)
+            report_loss = 0.0
+
+            for _ in range(self.k):
+                ind = np.random.choice(m, self.batch_size)
+                x = X_train[ind]
+                x = np.concatenate((x, G), axis=0)
+
+                y_hat = self.discriminator(x)
+                D_loss = self.discriminator.loss_func(y_hat, y)
+                self.discriminator.backward(y, y_hat, x)
+                report_loss += D_loss
+
+            y_hat = self.discriminator(G)
+            G_loss = self.discriminator.loss_func(y_hat, ones)
+            self.generator.backward(ones, y_hat, z, self.discriminator)
+            if (i+1)%self.report_freq == 0:
+                print("[Iteration: %d] - [D loss: %.5f] - [G loss: %.5f]" % (i+1, D_loss/self.k, G_loss))
+
+                z = np.random.normal(size=(self.batch_size, self.latent_dim))
+                G = self.generator(z, prediction=True)
+                save_grid_images(G, i+1)
 
 class Evaluator:
     

@@ -3,8 +3,9 @@ import numpy as np
 
 class CrossEntropy:
     
-    def __init__(self, weights=1):
+    def __init__(self, weights=1, epsilon=1e-20):
         self.weights = 1
+        self.epsilon = epsilon
 
     def __call__(self, Y_hat, Y):
         """
@@ -21,7 +22,7 @@ class CrossEntropy:
         J: cross-entropy loss.
         """
         assert Y.shape == Y_hat.shape, "Unmatch shape."
-        Y_hat[Y_hat == 0] = 1e-20
+        Y_hat[Y_hat == 0] = self.epsilon
         loss = np.sum(self.weights * Y * np.log(Y_hat), axis=-1)
         return -np.mean(loss)
 
@@ -82,4 +83,18 @@ class MSE:
         return grad
 
 class BinaryCrossEntropy:
-    pass
+    
+    def __init__(self, epsilon=1e-10):
+        self.epsilon = epsilon
+
+    def __call__(self, y_hat, y):
+        m = len(y_hat)
+        y_hat[y_hat == 0] = self.epsilon
+        y_hat[y_hat == 1] = 1 - self.epsilon
+        loss = -np.mean(y*np.log(y_hat) + (1-y)*np.log(1 - y_hat))
+        return loss
+
+    def backward(self, y_hat, y):
+        m = len(y)
+        grad = (y_hat - y)/m
+        return grad

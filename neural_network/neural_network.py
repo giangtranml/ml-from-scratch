@@ -6,7 +6,7 @@ Docs: https://giangtranml.github.io/ml/neural-network.html
 import sys, os
 sys.path.append("..")
 import numpy as np
-from nn_components.layers import FCLayer, ActivationLayer, BatchNormLayer, DropoutLayer, LearnableLayer
+from nn_components.layers import FCLayer, ActivationLayer, BatchNormLayer, DropoutLayer, LearnableLayer, InputLayer
 from nn_components.losses import CrossEntropy
 from optimizations_algorithms.optimizers import Adam, SGD, SGDMomentum, RMSProp
 from libs.utils import load_dataset_mnist, preprocess_data, Trainer, Evaluator
@@ -27,7 +27,6 @@ class NeuralNetwork:
         self.optimizer = optimizer
         self.loss_func = loss_func
         self.layers = layers
-        self.learnable_layers = [layer for layer in layers if isinstance(layer, LearnableLayer)][::-1]
 
     def _forward(self, train_X, prediction=False):
         """
@@ -45,7 +44,10 @@ class NeuralNetwork:
             shape = (N, C)
         """
         inputs = train_X
-        for layer in self.layers:
+        layers = self.layers
+        if hasattr(self, "output_layers"):
+            layers = layers + self.output_layers
+        for layer in layers:
             if isinstance(layer, (BatchNormLayer, DropoutLayer)):
                 inputs = layer.forward(inputs, prediction=prediction)
                 continue
@@ -57,14 +59,40 @@ class NeuralNetwork:
         """
         Special formula of backpropagation for the last layer.
         """
-        delta = self.loss_func.backward(Y_hat, Y)
-        dW = self.layers[-3].output.T.dot(delta)
-        dA_prev = delta.dot(self.layers[-2].W.T)
-        return dA_prev, dW
+        if not hasattr(self, "output_layers"):
+            self.output_layers = self.layers[-2:]
+            self.layers = self.layers[:-2]
+            self.learnable_layers = [layer for layer in self.layers if isinstance(layer, LearnableLayer)]
+            self.learnable_layers.extend(layer for layer in self.output_layers if isinstance(layer, LearnableLayer))
+            self.learnable_layers = self.learnable_layers[::-1]
 
-    def _backward(self, Y, Y_hat, X):
+        delta = self.loss_func.backward(Y_hat, Y)
+        dW_last = self.layers[-1].output.T.dot(delta)
+        dA_last = delta.dot(self.output_layers[0].W.T)
+        return dA_last, dW_last
+
+    def _backward(self, dA_last, dW_last):
         """
         NN backward propagation level. Update weights of the neural network.
+
+        """
+        dA_prev, dW = dA_last, dW_last
+        grads = [dW]
+        if dW is None:
+            grads.pop()
+        for i in range(len(self.layers)-1, 0, -1):
+            if isinstance(self.layers[i], LearnableLayer):
+                dA_prev, dW = self.layers[i].backward(dA_prev, self.layers[i-1])
+                grads.append(dW)
+                continue
+            dA_prev = self.layers[i].backward(dA_prev, self.layers[i-1])
+        return grads
+    
+    def _update_params(self, grads):
+        self.optimizer.step(grads, self.learnable_layers )
+
+    def backward(self, Y, Y_hat, X):
+        """
 
         Parameters
         ----------
@@ -75,22 +103,8 @@ class NeuralNetwork:
         X: training dataset.
             shape = (N, D).
         """
-        dA_prev, dW = self._backward_last(Y, Y_hat)
-        layers = [X] + self.layers
-        grads = [dW]
-        for i in range(len(layers)-3, 0, -1):
-            if isinstance(layers[i], LearnableLayer):
-                dA_prev, dW = layers[i].backward(dA_prev, layers[i-1])
-                grads.append(dW)
-                continue
-            dA_prev = layers[i].backward(dA_prev, layers[i-1])
-        return grads
-    
-    def _update_params(self, grads):
-        self.optimizer.step(grads, self.learnable_layers)
-
-    def backward(self, Y, Y_hat, X):
-        grads = self._backward(Y, Y_hat, X)
+        dA_last, dW_last = self._backward_last(Y, Y_hat)
+        grads = self._backward(dA_last, dW_last)
         self._update_params(grads)
 
     def __call__(self, X, prediction=False):
@@ -119,6 +133,8 @@ def main():
         optimizer = Adam(learning_rate)
         loss_func = CrossEntropy()
         archs = [
+            InputLayer(),
+
             FCLayer(num_neurons=100, weight_init="he_normal"),
             ActivationLayer(activation="relu"),
             DropoutLayer(keep_prob=0.8),

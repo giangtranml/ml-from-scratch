@@ -20,6 +20,9 @@ class LearnableLayer:
     def forward(self, X):
         raise NotImplementedError("Child class must implement forward() function")
 
+    def backward_layer(self):
+        pass
+
     def backward(self):
         raise NotImplementedError("Child class must implement backward() function")
 
@@ -40,6 +43,25 @@ def _split_X(X, filter_size, stride):
                                                                         stride*height_strides, width_strides, 
                                                                         height_strides, channel_strides), writeable=False)
     return X
+
+class InputLayer(Layer):
+
+    def __init__(self, return_dX=False):
+        self.return_dX = return_dX
+        self.output = None
+
+    def forward(self, X):
+        self.output = X
+        return self.output
+
+    def backward(self, d_prev, weights_prev):
+        """
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
+        weights_prev: the weights of previous layer according backward direction.
+        """
+        if self.return_dX:
+            return d_prev.dot(weights_prev.T)
+        return None
 
 
 class FCLayer(LearnableLayer):
@@ -77,6 +99,13 @@ class FCLayer(LearnableLayer):
         self.output = inputs.dot(self.W)
         return self.output
 
+    def backward_layer(self, d_prev, _):
+        """
+        Compute gradient w.r.t X only.
+        """
+        d_prev = d_prev.dot(self.W.T)
+        return d_prev
+
     def backward(self, d_prev, prev_layer):
         """
         Layer backward level. Compute gradient respect to W and update it.
@@ -85,18 +114,15 @@ class FCLayer(LearnableLayer):
 
         Parameters
         ----------
-        d_prev: gradient of J respect to A[l+1] of the previous layer according the backward direction.
-        prev_layer: previous layer according the forward direction.
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
+        prev_layer: previous layer according forward direction.
         
         Returns
         -------
         d_prev: gradient of J respect to A[l] at the current layer.
         """
-        if type(prev_layer) is np.ndarray:
-            dW = prev_layer.T.dot(d_prev)
-            return None, dW
         dW = prev_layer.output.T.dot(d_prev)
-        d_prev = d_prev.dot(self.W.T)
+        d_prev = self.backward_layer(d_prev, None)
         return d_prev, dW
 
 
@@ -124,6 +150,7 @@ class ConvLayer(LearnableLayer):
         self.stride = stride
         self.weight_init = weight_init
         self.W = None
+        self.output = None
 
     def _conv_op(self, input_, kernel):
         """
@@ -199,25 +226,11 @@ class ConvLayer(LearnableLayer):
         self.output = self._conv_op(X, self.W)
         return self.output
 
-    def backward(self, d_prev, prev_layer):
-        """
-        Backward propagation of the convolutional layer.
-        
-        Parameters
-        ----------
-        d_prev: gradient of J respect to A[l+1] of the previous layer according the backward direction.
-        prev_layer: previous layer according the forward direction.
-        
-        """
-        X = prev_layer.output if type(prev_layer) is not np.ndarray else prev_layer
-        if self.padding == "SAME":
-            X = self._pad_input(X)
+    def backward_layer(self, d_prev, X):
         _, iH, iW, _ = X.shape
         m, oH, oW, oC = d_prev.shape
         fH, fW = self.filter_size
         dA = np.zeros(shape=(X.shape))
-        X = _split_X(X, self.filter_size, self.stride)
-        dW = self._conv_op_backward(X, d_prev, update_params=True)
         dA_temp = self._conv_op_backward(self.W, d_prev, update_params=False)
         for h in range(oH):
             for w in range(oW):
@@ -228,6 +241,24 @@ class ConvLayer(LearnableLayer):
             offset_h = (iH - oH)//2
             offset_w = (iW - oW)//2 
             dA = dA[:, offset_h:-offset_h, offset_w:-offset_w, :]
+        return dA
+
+    def backward(self, d_prev, prev_layer):
+        """
+        Backward propagation of the convolutional layer.
+        
+        Parameters
+        ----------
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
+        prev_layer: previous layer according forward direction.
+        
+        """
+        X = prev_layer.output
+        if self.padding == "SAME":
+            X = self._pad_input(X)
+        dA = self.backward_layer(d_prev, X)
+        X = _split_X(X, self.filter_size, self.stride)
+        dW = self._conv_op_backward(X, d_prev, update_params=True)
         return dA, dW
 
 
@@ -317,8 +348,8 @@ class PoolingLayer(Layer):
 
         Parameters
         ----------
-        d_prev: gradient of J respect to A[l+1] of the previous layer according the backward direction.
-        prev_layer: previous layer according the forward direction `l-1`.
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
+        prev_layer: previous layer according forward direction `l-1`.
 
         Returns
         -------
@@ -379,8 +410,7 @@ class ActivationLayer(Layer):
 
         Parameters
         ---------- 
-        d_prev: gradient of J respect to A[l+1] of the previous layer according the backward direction.
-        prev_layer: previous layer according the forward direction.
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
         
         Returns
         -------
@@ -452,6 +482,25 @@ class BatchNormLayer(LearnableLayer):
         self.output = self.W[0]*self.Xnorm + self.W[1]
         return self.output
 
+    def backward_layer(self, d_prev, prev_layer):
+        """
+        Compute gradient w.r.t X only.
+        
+        Parameters
+        ---------- 
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
+        prev_layer: previous layer according forward direction.
+        """
+        m = prev_layer.output.shape[0]
+        dXnorm = d_prev * self.W[0]
+        dSigma = np.sum(dXnorm * (-((prev_layer.output - self.mu)*(self.sigma+self.epsilon)**(-3/2))/2),
+                       axis=0, keepdims=True)
+        dMu = np.sum(dXnorm*(-1/np.sqrt(self.sigma+self.epsilon)), axis=0, keepdims=True) +\
+                dSigma*((-2/m)*np.sum(prev_layer.output - self.mu, axis=0, keepdims=True))
+        d_prev = dXnorm*(1/np.sqrt(self.sigma+self.epsilon)) + dMu/m +\
+                dSigma*((2/m)*np.sum(prev_layer.output - self.mu, axis=0, keepdims=True))
+        return d_prev
+
     def backward(self, d_prev, prev_layer):
         """
         Compute batch norm backward.
@@ -460,21 +509,14 @@ class BatchNormLayer(LearnableLayer):
 
         Parameters
         ---------- 
-        d_prev: gradient of J respect to A[l+1] of the previous layer according the backward direction.
-        prev_layer: previous layer according the forward direction.
+        d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
+        prev_layer: previous layer according forward direction.
         
         Returns
         -------
         dZ: Gradient w.r.t LINEAR function Z.
         """
-        m = prev_layer.output.shape[0]
-        dXnorm = d_prev * self.W[0]
         gamma_grad = np.sum(d_prev * self.Xnorm, axis=0, keepdims=True)
         beta_grad = np.sum(d_prev, axis=0, keepdims=True)
-        dSigma = np.sum(dXnorm * (-((prev_layer.output - self.mu)*(self.sigma+self.epsilon)**(-3/2))/2),
-                       axis=0, keepdims=True)
-        dMu = np.sum(dXnorm*(-1/np.sqrt(self.sigma+self.epsilon)), axis=0, keepdims=True) +\
-                dSigma*((-2/m)*np.sum(prev_layer.output - self.mu, axis=0, keepdims=True))
-        d_prev = dXnorm*(1/np.sqrt(self.sigma+self.epsilon)) + dMu/m +\
-                dSigma*((2/m)*np.sum(prev_layer.output - self.mu, axis=0, keepdims=True))
+        d_prev = self.backward_layer(d_prev, prev_layer)
         return d_prev, np.vstack((gamma_grad, beta_grad))
