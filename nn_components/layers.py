@@ -116,7 +116,7 @@ class FCLayer(LearnableLayer):
         ----------
         d_prev: gradient of J respect to A[l+1] of the previous layer according backward direction.
         prev_layer: previous layer according forward direction.
-        
+
         Returns
         -------
         d_prev: gradient of J respect to A[l] at the current layer.

@@ -17,6 +17,17 @@ class Generator(NeuralNetwork):
         pass
 
     def backward(self, y, y_hat, z, discriminator):
+        """
+        Generator don't compute directly with loss, so we need discriminator 
+            backprop gradient from earlier layers according backward direction.
+                    
+        Parameters
+        ----------
+        y: vector ones (for optimizing fake to real), we want optimize generator parameters to fool discriminator.
+        y_hat: output pass from generator -> discriminator
+        z: random noise variables.
+        discriminator: discriminator network. 
+        """
         dA = discriminator.return_input_grads(y, y_hat)
         grads = self._backward(dA, None)
         self._update_params(grads)
@@ -27,6 +38,9 @@ class Discriminator(NeuralNetwork):
         super().__init__(optimizer, layers, loss_func)
 
     def return_input_grads(self, y, y_hat):
+        """
+        Compute gradient of Loss w.r.t inputs, flow gradient to compute gradient of Loss w.r.t generator parameters.
+        """
         dA_prev, _ = self._backward_last(y, y_hat)
         for i in range(len(self.layers)-1, 0, -1):
             backward_func = self.layers[i].backward_layer if isinstance(self.layers[i], LearnableLayer) else self.layers[i].backward
@@ -34,7 +48,7 @@ class Discriminator(NeuralNetwork):
         return dA_prev
 
 
-def main():
+def main(digit=2):
 
     mnist_dim = 784
 
@@ -86,7 +100,7 @@ def main():
     images, labels = mndata.load_training()
     images, labels = preprocess_data(images, labels, test=True)
 
-    images = images[labels == 2]
+    images = images[labels == digit]
 
     optimizer_G = Adam(alpha=0.006)
     optimizer_D = Adam(alpha=0.006)
@@ -98,8 +112,10 @@ def main():
 
     batch_size = 64
     iterations = 10000
+
+    print("Training GAN with MNIST dataset to generate digit %d" % digit)
     trainerGAN = TrainerGAN(generator, discriminator, batch_size, iterations)
     trainerGAN.train(images)
 
 if __name__ == "__main__":
-    main()
+    main(digit=8)

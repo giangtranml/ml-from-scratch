@@ -14,7 +14,6 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import classification_report, confusion_matrix, precision_recall_fscore_support
 from tqdm import tqdm
 from .cifar10_lib import get_file, load_batch
-import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 
@@ -83,7 +82,10 @@ def save_grid_images(images, iteration):
         # Iterating over the grid returns the Axes.
         ax.imshow(im, cmap="gray")
 
-    plt.savefig("gan-%d.png" % iteration)    
+    path = os.path.abspath(".")
+    f = "gan-%d.png" % iteration
+    plt.savefig(f)
+    print("Image saved: %s" % os.path.join(path, f))
 
 
 class Trainer:
