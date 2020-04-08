@@ -13,6 +13,7 @@ As a software engineer, I follow the principle of OOP to construct the repositor
   * [Softmax Regression](https://github.com/giangtranml/ml-from-scratch/blob/master/softmax_regression/softmax_regression.py)
   * [Neural Network](https://github.com/giangtranml/ml-from-scratch/blob/master/neural_network/neural_network.py)
   * [Convolutional Neural Network](https://github.com/giangtranml/ml-from-scratch/blob/master/convolutional_neural_network/convolutional_neural_network.py)
+  * [Generative Adversarial Network](https://github.com/giangtranml/ml-from-scratch/blob/master/gan/gan.py)
   * [Support Vector Machine](https://github.com/giangtranml/ml-from-scratch/blob/master/svm/svm.py)
   
 - Deep Learning layers:
