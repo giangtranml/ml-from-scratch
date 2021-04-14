@@ -10,23 +10,22 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import sys
 sys.path.append("..")
-from optimizations_algorithms.optimizers import SGD
 
 
 class LogisticRegression:
 
-    def __init__(self, epochs, optimizer, batch_size):
+    def __init__(self, epochs, learning_rate, batch_size):
         """
         Constructor for logistic regression.
 
         Parameter
         ---------
         epochs: number of epoch to train logistic regression.
-        optimizer: optimizer algorithm to update weights.
+        learning_rate: learning rate to use optimize parameters.
         batch_size: number of batch size using each iteration.
         """
         self.epochs = epochs
-        self.optimizer = optimizer
+        self.learning_rate = learning_rate
         self.batch_size = batch_size
 
     def _sigmoid(self, X):
@@ -52,6 +51,8 @@ class LogisticRegression:
         Compute cross entropy loss.
         """
         m = y_true.shape[0]
+        epsilon = 1e-20
+        y_pred[y_pred == 0] = epsilon
         return -np.sum(y_true*np.log(y_pred) + (1-y_true)*np.log(1 - y_pred))/m
 
     def _gradient(self, X, y_true, y_pred):
@@ -74,7 +75,7 @@ class LogisticRegression:
                 loss = self._cross_entropy_loss(y_train[it:it+self.batch_size], y_hat)
                 batch_loss += loss
                 grad = self._gradient(X_train[it:it+self.batch_size], y_train[it:it+self.batch_size], y_hat)
-                self.w -= self.optimizer.minimize(grad)
+                self.w -= self.learning_rate*grad 
                 it += self.batch_size
                 num_batches += 1
             print("Loss at epoch %s: %f" % (e + 1 , batch_loss / num_batches))
@@ -131,8 +132,7 @@ def main():
     epochs = 20
     learning_rate = 0.1
     batch_size = 64
-    optimizer = SGD(alpha=learning_rate)
-    logistic = LogisticRegression(epochs, optimizer, batch_size)
+    logistic = LogisticRegression(epochs, learning_rate, batch_size)
     logistic.train(X_train, y_train)
     pred = logistic.predict(X_test)
     y_test = y_test.reshape((-1, 1))

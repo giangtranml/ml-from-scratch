@@ -7,14 +7,15 @@ import sys
 sys.path.append("..")
 import numpy as np
 from sklearn.model_selection import train_test_split
-from optimizations_algorithms.optimizers import SGD
 
 class LinearRegression:
 
-    def __init__(self, optimizer, epochs=1000, lambda_=0.1):
+    def __init__(self, alpha, epochs=1000, lambda_=0.1):
+        self.alpha = alpha
         self.epochs = epochs
         self.lambda_ = lambda_
-        self.optimizer = optimizer
+        self.w = None
+        self.b = None
 
     def _hypothesis(self, X):
         return np.dot(X, self.w) + self.b
@@ -42,8 +43,8 @@ class LinearRegression:
                 break
 
     def _update_params(self, w_grad, b_grad):
-        self.w -= self.optimizer.minimize(w_grad)
-        self.b -= self.optimizer.minimize(b_grad)
+        self.w -= self.alpha*w_grad
+        self.b -= self.alpha*b_grad
 
     def train(self, X_train, y_train):
         self.w = np.random.normal(size=(X_train.shape[1], 1))
@@ -79,8 +80,7 @@ def main():
     alpha = 0.01
     epochs = 500
     lambda_ = 0
-    optimizer = SGD(alpha=alpha)
-    linear_regression = LinearRegression(optimizer, epochs, lambda_)
+    linear_regression = LinearRegression(alpha, epochs, lambda_)
     linear_regression.train(X_train, y_train)
 
     (X_test, x_mean, x_std), (y_test, y_mean, y_std) = standardize_regression(X_test, y_test)

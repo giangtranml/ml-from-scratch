@@ -27,7 +27,7 @@ class NeuralNetwork:
         self.optimizer = optimizer
         self.loss_func = loss_func
         self.layers = layers
-
+        
     def _forward(self, train_X, prediction=False):
         """
         NN forward propagation level.
