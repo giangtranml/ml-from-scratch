@@ -6,6 +6,9 @@ This ML repository is all about coding Machine Learning algorithms from scratch 
 ## Repository structure
 As a software engineer, I follow the principle of OOP to construct the repository. You can see that `NeuralNetwork` class will use `FCLayer`, `BatchNormLayer`, `ActivationLayer` class and `CNN` class will use `ConvLayer`, `PoolingLayer`, `FCLayer`, `ActivationLayer`,... This helps me easily reuse every piece of code I wrote as well as for readable code. 
 
+## Dependencies: 
+- tqdm, numpy, sklearn, matplotlib
+
 ## Table of contents
 - Machine Learning models:
   * [Linear Regression](https://github.com/giangtranml/ml-from-scratch/blob/master/linear_regression/linear_regression.py)
