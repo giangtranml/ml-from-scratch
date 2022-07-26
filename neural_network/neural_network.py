@@ -28,7 +28,7 @@ class NeuralNetwork:
         self.loss_func = loss_func
         self.layers = layers
         
-    def _forward(self, train_X, prediction=False):
+    def _forward(self, train_X, prediction=False) -> np.ndarray:
         """
         NN forward propagation level.
 
@@ -130,18 +130,16 @@ def main():
         batch_size = 64
         learning_rate = 0.01
 
-        optimizer = Adam(learning_rate)
+        optimizer = SGD(learning_rate)
         loss_func = CrossEntropy()
         archs = [
             InputLayer(),
 
             FCLayer(num_neurons=100, weight_init="he_normal"),
             ActivationLayer(activation="relu"),
-            DropoutLayer(keep_prob=0.8),
 
             FCLayer(num_neurons=125, weight_init="he_normal"),
             ActivationLayer(activation="relu"),
-            DropoutLayer(keep_prob=0.8),
 
             FCLayer(num_neurons=50, weight_init="he_normal"),
             BatchNormLayer(),
